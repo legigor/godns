@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/lmittmann/tint"
+	"godns/dns"
 	"io"
 	"log/slog"
 	"os"
@@ -14,13 +14,12 @@ import (
 func main() {
 	ctx := context.Background()
 	if err := run(ctx, os.Stdout); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context, w io.Writer) error {
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	logger := slog.New(tint.NewHandler(w, &tint.Options{
@@ -28,7 +27,15 @@ func run(ctx context.Context, w io.Writer) error {
 		AddSource: false,
 	}))
 
-	logger.Info("Hello, world!")
+	srv := dns.NewServer(logger, ctx)
+	addr, err := srv.Start()
 
+	logger.Info("server started", "addr", addr)
+
+	if err != nil {
+		logger.Error("error on serve", "err", err)
+	}
+
+	logger.Info("server stopped")
 	return nil
 }
