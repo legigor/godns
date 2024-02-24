@@ -7,6 +7,10 @@ import (
 	"net"
 )
 
+const (
+	readBufferSize = 1024
+)
+
 type Server struct {
 	logger *slog.Logger
 	ctx    context.Context
@@ -35,7 +39,7 @@ func (srv *Server) Start() (*net.UDPAddr, error) {
 			_ = conn.Close()
 		}(conn)
 
-		buf := make([]byte, 1024)
+		buf := make([]byte, readBufferSize)
 		for {
 			select {
 			case <-srv.ctx.Done():
@@ -48,17 +52,21 @@ func (srv *Server) Start() (*net.UDPAddr, error) {
 					continue
 				}
 
-				request := string(buf[:n])
-				srv.logger.Info("got a request", "message", request, "client", addr)
-
-				_, err = conn.WriteToUDP([]byte("Hello, Client!"), addr)
-				if err != nil {
-					srv.logger.Error("error writing to UDP", "error", err)
-				}
+				request := buf[:n]
+				go srv.processRequest(conn, addr, request)
 			}
 		}
 
 	}(conn)
 
 	return conn.LocalAddr().(*net.UDPAddr), nil
+}
+
+func (srv *Server) processRequest(conn *net.UDPConn, addr *net.UDPAddr, request []byte) {
+	srv.logger.Info("got a request", "message", request, "client", addr)
+
+	_, err := conn.WriteToUDP([]byte("Hello, Client!"), addr)
+	if err != nil {
+		srv.logger.Error("error writing to UDP", "error", err)
+	}
 }

@@ -16,5 +16,5 @@ func Test_server(t *testing.T) {
 	}()
 	defer cancel()
 
-	// TODO:
+	// TODO: end to end testing here
 }
